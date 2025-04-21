@@ -1,0 +1,15 @@
+[workspace]
+members = [
+  "mycelium",
+  "mobile",
+  "mycelium-metrics",
+  "mycelium-api",
+  "mycelium-cli",
+]
+exclude = ["myceliumd", "myceliumd-private", "mycelium-ui"]
+resolver = "2"
+
+
+[profile.release]
+lto = "fat"
+codegen-units = 1

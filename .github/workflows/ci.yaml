@@ -1,0 +1,134 @@
+name: ci
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check_fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - uses: clechasseur/rs-fmt-check@v2
+
+  clippy:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Set windows VCPKG_ROOT env variable
+      run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+      if: runner.os == 'Windows'
+    - name: Install windows openssl
+      run: vcpkg install openssl:x64-windows-static-md
+      if: runner.os == 'Windows'
+    - uses: actions/checkout@v4
+    - name: Run Clippy
+      run: cargo clippy --all-features -- -Dwarnings
+
+  check_library:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest,windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Set windows VCPKG_ROOT env variable
+      run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+      if: runner.os == 'Windows'
+    - name: Install windows openssl
+      run: vcpkg install openssl:x64-windows-static-md
+      if: runner.os == 'Windows'
+    - uses: actions/checkout@v4
+    - name: Build
+      run: cargo build -p mycelium --all-features --verbose
+    - name: Run tests
+      run: cargo test -p mycelium --all-features --verbose
+
+  check_ios_library:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: install ios target
+      run: rustup target add aarch64-apple-ios
+    - name: Cache cargo
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - name: Build
+      run: cargo build --target aarch64-apple-ios
+      working-directory: mobile
+
+  check_android_library:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: install android target
+      run: rustup target add aarch64-linux-android
+    - name: Setup Java
+      uses: actions/setup-java@v2
+      with:
+        distribution: 'adopt'
+        java-version: '17'
+    - name: Set up Android NDK
+      uses: android-actions/setup-android@v3
+    - name: Accept Android Licenses
+      run: yes | sdkmanager --licenses || true
+    - name: Cache cargo
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - name: install cargo NDK
+      run: cargo install cargo-ndk
+    - name: Build
+      run: cargo ndk -t arm64-v8a build
+      working-directory: mobile
+
+  check_binaries:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        binary: [myceliumd, myceliumd-private]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Set windows VCPKG_ROOT env variable
+      run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+      if: runner.os == 'Windows'
+    - name: Install windows openssl
+      run: vcpkg install openssl:x64-windows-static-md
+      if: runner.os == 'Windows'
+    - uses: actions/checkout@v4
+    - name: Change directory to binary
+      run: cd ${{ matrix.binary }}
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
+    - name: Run Clippy
+      run: cargo clippy --all-features -- -Dwarnings
+
+  check_flake:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      id-token: "write"
+      contents: "read"
+    steps:
+    - uses: actions/checkout@v4
+    - uses: DeterminateSystems/nix-installer-action@main
+    - uses: DeterminateSystems/magic-nix-cache-action@main
+    - uses: DeterminateSystems/flake-checker-action@main
+    - name: Run `nix build`
+      run: nix build .
