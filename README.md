@@ -83,9 +83,10 @@ option, which offers the same capabilities as the command line arguments.
 
 If no configuration file is specified with `--config-file`, Mycelium will search for one
 in a default location based on the operating system:
-  - Linux: $HOME/.config/mycelium.toml
-  - Windows: %APPDATA%/ThreeFold Tech/Mycelium/mycelium.toml
-  - Mac OS: $HOME/Library/Application Support/ThreeFold Tech/Mycelium/mycelium.toml
+
+- Linux: $HOME/.config/mycelium.toml
+- Windows: %APPDATA%/ThreeFold Tech/Mycelium/mycelium.toml
+- Mac OS: $HOME/Library/Application Support/ThreeFold Tech/Mycelium/mycelium.toml
 
 Command line arguments will override any settings found in the configuration file.
 
